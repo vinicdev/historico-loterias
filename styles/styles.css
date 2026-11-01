@@ -118,7 +118,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .tab-button:focus-visible,
 .year-button:focus-visible,
 #contest-search-button:focus-visible,
+#result-search-button:focus-visible,
 #contest-search-input:focus-visible,
+#result-search-input:focus-visible,
 #modal-close:focus-visible {
     outline: 3px solid var(--accent-soft);
     outline-offset: 2px;
@@ -155,6 +157,14 @@ button { -webkit-tap-highlight-color: transparent; }
 .control-block { padding: 28px; }
 .control-block + .control-block { border-left: 1px solid var(--line); }
 
+/* Duas buscas empilhadas na coluna esquerda do painel. */
+.search-group + .search-group {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+}
+
+
 .section-heading {
     display: flex;
     align-items: center;
@@ -188,7 +198,8 @@ button { -webkit-tap-highlight-color: transparent; }
     box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
-#contest-search-input {
+#contest-search-input,
+#result-search-input {
     min-width: 0;
     flex: 1;
     padding: 0 14px;
@@ -199,11 +210,13 @@ button { -webkit-tap-highlight-color: transparent; }
     font-size: .92rem;
 }
 
-#contest-search-input::placeholder { color: var(--muted); }
+#contest-search-input::placeholder,
+#result-search-input::placeholder { color: var(--muted); }
 #contest-search-input::-webkit-inner-spin-button,
 #contest-search-input::-webkit-outer-spin-button { opacity: .35; }
 
-#contest-search-button {
+#contest-search-button,
+#result-search-button {
     min-width: 92px;
     padding: 0 18px;
     border: 0;
@@ -216,7 +229,8 @@ button { -webkit-tap-highlight-color: transparent; }
     transition: background .18s ease, transform .18s ease;
 }
 
-#contest-search-button:hover {
+#contest-search-button:hover,
+#result-search-button:hover {
     background: var(--accent-strong);
     transform: translateY(-1px);
 }
@@ -614,7 +628,8 @@ body.modal-open {
 
 @media (max-width: 900px) {
     .app-shell { width: min(100% - 28px, 1180px); padding-top: 42px; }
-    .control-grid { grid-template-columns: 1fr; }
+    .control-grid { grid-template-columns: minmax(0, 1fr); }
+    .control-block { min-width: 0; }
     .control-block + .control-block { border-left: 0; border-top: 1px solid var(--line); }
     .draw-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

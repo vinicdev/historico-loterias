@@ -43,12 +43,31 @@
             <section id="lookup" class="workspace">
                 <div class="control-grid">
                     <div class="control-block search-block">
-                        <div class="section-heading">
-                            <h2>Buscar por Concurso</h2>
+                        <div class="search-group">
+                            <div class="section-heading">
+                                <h2>Buscar por Concurso</h2>
+                            </div>
+                            <div class="search-box">
+                                <input type="number" id="contest-search-input" placeholder="Nº do concurso" inputmode="numeric">
+                                <button id="contest-search-button" type="button">Buscar</button>
+                            </div>
                         </div>
-                        <div class="search-box">
-                            <input type="number" id="contest-search-input" placeholder="Nº do concurso" inputmode="numeric">
-                            <button id="contest-search-button" type="button">Buscar</button>
+
+                        <div class="search-group">
+                            <div class="section-heading">
+                                <h2>Buscar por Resultado</h2>
+                            </div>
+                            <div class="search-box">
+                                <input
+                                    type="text"
+                                    id="result-search-input"
+                                    placeholder="01 - 02 - 03 - 04 - 05 - 06"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    aria-label="Números sorteados"
+                                >
+                                <button id="result-search-button" type="button">Buscar</button>
+                            </div>
                         </div>
                     </div>
 

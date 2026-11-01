@@ -40,6 +40,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const summaryYearSpan = document.getElementById("summary-year");
   const contestSearchInput = document.getElementById("contest-search-input");
   const contestSearchButton = document.getElementById("contest-search-button");
+  const resultSearchInput = document.getElementById("result-search-input");
+  const resultSearchButton = document.getElementById("result-search-button");
   const themeToggle = document.getElementById("theme-toggle");
 
   const modal = document.getElementById("draw-modal");
@@ -259,11 +261,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!Array.isArray(numbers) || numbers.length === 0) return;
 
-    const copyNumbers = async () => {
-      const text = numbers.map((number) => String(Number(number))).join(" - ");
+    // Preserva o zero à esquerda (01, 02, ...).
+    // No Super Sete, cada coluna possui somente um dígito.
+    const digitWidth = currentGame === "supersete" ? 1 : 2;
+    const formattedNumbers = numbers
+      .map((number) => String(number).trim().padStart(digitWidth, "0"))
+      .join(" - ");
 
+    const copyNumbers = async () => {
       try {
-        await copyTextToClipboard(text);
+        await copyTextToClipboard(formattedNumbers);
         element.classList.remove("copy-success");
         void element.offsetWidth;
         element.classList.add("copy-success");
@@ -274,7 +281,7 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     element.classList.add("is-copyable");
-    element.title = `Clique para copiar: ${numbers.map((number) => String(Number(number))).join(" - ")}`;
+    element.title = `Clique para copiar: ${formattedNumbers}`;
     element.setAttribute("role", "button");
     element.setAttribute("tabindex", "0");
     element.setAttribute("aria-label", `${label}. Clique para copiar.`);
@@ -805,6 +812,207 @@ document.addEventListener("DOMContentLoaded", function () {
     explorar.innerHTML = await getGameName(currentGame);
   }
 
+  const resultSearchConfig = {
+    megasena: { quantity: 6, digitsPerNumber: 2, min: 1, max: 60, ordered: false },
+    lotofacil: { quantity: 15, digitsPerNumber: 2, min: 1, max: 25, ordered: false },
+    quina: { quantity: 5, digitsPerNumber: 2, min: 1, max: 80, ordered: false },
+    lotomania: { quantity: 20, digitsPerNumber: 2, min: 0, max: 99, ordered: false },
+    timemania: { quantity: 7, digitsPerNumber: 2, min: 1, max: 80, ordered: false },
+    duplasena: { quantity: 6, digitsPerNumber: 2, min: 1, max: 50, ordered: false },
+    diadesorte: { quantity: 7, digitsPerNumber: 2, min: 1, max: 31, ordered: false },
+    supersete: { quantity: 7, digitsPerNumber: 1, min: 0, max: 9, ordered: true },
+    maismilionaria: { quantity: 6, digitsPerNumber: 2, min: 1, max: 50, ordered: false },
+  };
+
+  function getResultSearchConfig(game = currentGame) {
+    return resultSearchConfig[game] || {
+      quantity: 6,
+      digitsPerNumber: 2,
+      min: 0,
+      max: 99,
+      ordered: false,
+    };
+  }
+
+  function formatResultSearchValue(value, game = currentGame) {
+    const config = getResultSearchConfig(game);
+    const onlyDigits = String(value || "").replace(/\D/g, "");
+    const maxDigits = config.quantity * config.digitsPerNumber;
+    const limited = onlyDigits.slice(0, maxDigits);
+    const groups = [];
+
+    for (let i = 0; i < limited.length; i += config.digitsPerNumber) {
+      groups.push(limited.slice(i, i + config.digitsPerNumber));
+    }
+
+    return groups.join(" - ");
+  }
+
+  function updateResultSearchPlaceholder() {
+    if (!resultSearchInput) return;
+
+    const config = getResultSearchConfig();
+    const sample = Array.from({ length: config.quantity }, (_, index) => {
+      if (config.digitsPerNumber === 1) {
+        return String((index + 1) % 10);
+      }
+      return String(index + 1).padStart(config.digitsPerNumber, "0");
+    });
+
+    resultSearchInput.placeholder = sample.join(" - ");
+    resultSearchInput.value = "";
+  }
+
+  function parseResultSearchValue(value, game = currentGame) {
+    const config = getResultSearchConfig(game);
+    const onlyDigits = String(value || "").replace(/\D/g, "");
+    const expectedLength = config.quantity * config.digitsPerNumber;
+
+    if (onlyDigits.length !== expectedLength) {
+      return {
+        error: `Informe ${config.quantity} números para esta modalidade.`,
+      };
+    }
+
+    const numbers = [];
+
+    for (let i = 0; i < onlyDigits.length; i += config.digitsPerNumber) {
+      const rawNumber = onlyDigits.slice(i, i + config.digitsPerNumber);
+      const numericValue = Number(rawNumber);
+
+      if (
+        !Number.isInteger(numericValue) ||
+        numericValue < config.min ||
+        numericValue > config.max
+      ) {
+        return {
+          error: `O número ${rawNumber} é inválido para esta modalidade.`,
+        };
+      }
+
+      numbers.push(
+        String(numericValue).padStart(config.digitsPerNumber, "0")
+      );
+    }
+
+    if (!config.ordered && new Set(numbers).size !== numbers.length) {
+      return { error: "Não repita números na busca pelo resultado." };
+    }
+
+    return { numbers, config };
+  }
+
+  function normalizeResultNumbers(numbers, config) {
+    if (!Array.isArray(numbers)) return "";
+
+    const normalized = numbers.map((number) =>
+      String(Number(number)).padStart(config.digitsPerNumber, "0")
+    );
+
+    if (!config.ordered) {
+      normalized.sort((a, b) => Number(a) - Number(b));
+    }
+
+    return normalized.join("|");
+  }
+
+  function getAllAvailableContestsForGame(game = currentGame) {
+    const found = [];
+    const seen = new Set();
+
+    const appendContest = (contest) => {
+      if (!contest || contest.numero === undefined || contest.numero === null) return;
+
+      const key = String(contest.numero);
+      if (seen.has(key)) return;
+
+      seen.add(key);
+      found.push(contest);
+    };
+
+    const localData = getLocalGameData(game);
+    if (localData) {
+      Object.values(localData).forEach((yearContests) => {
+        if (!Array.isArray(yearContests)) return;
+        yearContests.forEach(appendContest);
+      });
+    }
+
+    const cachedData = concursos[game];
+    if (cachedData) {
+      Object.values(cachedData).forEach((yearContests) => {
+        if (!Array.isArray(yearContests)) return;
+        yearContests.forEach(appendContest);
+      });
+    }
+
+    return found;
+  }
+
+  function findContestByResult(numbers, game = currentGame) {
+    const config = getResultSearchConfig(game);
+    const searchedResult = normalizeResultNumbers(numbers, config);
+    const contests = getAllAvailableContestsForGame(game)
+      .sort((a, b) => Number(b.numero) - Number(a.numero));
+
+    for (const contest of contests) {
+      const primaryResult = normalizeResultNumbers(contest.listaDezenas, config);
+
+      if (primaryResult === searchedResult) {
+        return { contest, matchedDraw: "primary" };
+      }
+
+      if (
+        game === "duplasena" &&
+        Array.isArray(contest.listaDezenasSegundoSorteio)
+      ) {
+        const secondResult = normalizeResultNumbers(
+          contest.listaDezenasSegundoSorteio,
+          config
+        );
+
+        if (secondResult === searchedResult) {
+          return { contest, matchedDraw: "secondary" };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  async function handleResultSearch() {
+    const infoMod = await getInfoMod(currentGame);
+    const parsed = parseResultSearchValue(resultSearchInput?.value);
+
+    if (parsed.error) {
+      showError(parsed.error);
+      return;
+    }
+
+    hideError();
+    showLoading(true);
+    updateLoadingProgress("Procurando resultado nos concursos salvos...");
+
+    const loadingStartedAt = performance.now();
+    const match = findContestByResult(parsed.numbers, currentGame);
+
+    const elapsed = performance.now() - loadingStartedAt;
+    if (elapsed < 220) {
+      await waitForPresentation(220 - elapsed);
+    }
+
+    showLoading(false);
+
+    if (match?.contest) {
+      showModal(match.contest, currentGame);
+      return;
+    }
+
+    showError(
+      `Resultado ${parsed.numbers.join(" - ")} não encontrado nos dados carregados de ${infoMod.nome}.`
+    );
+  }
+
   async function handleContestSearch() {
     const infoMod = await getInfoMod(currentGame);
     const contestNumber = contestSearchInput.value;
@@ -880,6 +1088,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         button.setAttribute("data-selected", "true");
 
+        updateResultSearchPlaceholder();
         setupYearSelector();
         loadYearData();
       }
@@ -891,12 +1100,23 @@ document.addEventListener("DOMContentLoaded", function () {
     if (e.key === "Enter") handleContestSearch();
   });
 
+  resultSearchButton?.addEventListener("click", handleResultSearch);
+  resultSearchInput?.addEventListener("input", (event) => {
+    event.target.value = formatResultSearchValue(event.target.value);
+    const end = event.target.value.length;
+    event.target.setSelectionRange(end, end);
+  });
+  resultSearchInput?.addEventListener("keyup", (event) => {
+    if (event.key === "Enter") handleResultSearch();
+  });
+
   modalCloseBtn.addEventListener("click", hideModal);
   modal.addEventListener("click", (e) => {
     if (e.target === modal) hideModal();
   });
 
   setupTheme();
+  updateResultSearchPlaceholder();
   setupYearSelector();
   loadYearData();
 });
