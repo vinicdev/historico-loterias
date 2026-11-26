@@ -423,6 +423,14 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .draw-card:hover::before { opacity: 1; }
 
+/* Primeiro item da grade: próximo concurso ainda não sorteado. */
+.draw-card-upcoming { cursor: default; }
+.draw-card-upcoming:hover { transform: none; }
+.draw-card-upcoming .next-draw-status { color: var(--accent); }
+.draw-card-upcoming::before {
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
 /* Concurso sem ganhador/acumulado: apenas a linha superior fica vermelha no hover */
 
 .draw-card.result-lost::before {

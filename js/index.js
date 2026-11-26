@@ -169,6 +169,72 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // O retorno do último concurso informa a data e a estimativa do próximo.
+  // O card não é um resultado: não tem dezenas nem abre o modal de premiação.
+  function parseNextContestDate(rawDate) {
+    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(rawDate || "").trim());
+    if (!match) return null;
+
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    const date = new Date(year, month - 1, day);
+
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      return null;
+    }
+    return date;
+  }
+
+  function renderNextContestCard(latestData) {
+    if (!latestData || latestData.error || latestData.aborted) return;
+
+    const nextDateText = String(latestData.dataProximoConcurso || "").trim();
+    const nextDate = parseNextContestDate(nextDateText);
+    if (!nextDate) return;
+
+    // Evita mostrar um sorteio antigo como se ainda estivesse pendente.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (nextDate < today) return;
+
+    const lastDrawNumber = Number(latestData.numero);
+    const providedNextNumber = Number(latestData.numeroConcursoProximo);
+    const nextNumber = Number.isInteger(providedNextNumber) &&
+      providedNextNumber > lastDrawNumber
+        ? providedNextNumber
+        : lastDrawNumber + 1;
+
+    if (!Number.isInteger(nextNumber) || nextNumber < 1) return;
+
+    const estimated = Number(latestData.valorEstimadoProximoConcurso);
+    const accumulated = Number(latestData.valorAcumuladoProximoConcurso);
+    const estimatedPrize = Number.isFinite(estimated) && estimated > 0
+      ? estimated
+      : Number.isFinite(accumulated) && accumulated > 0
+        ? accumulated
+        : null;
+
+    // Usa o MESMO grid e a MESMA estrutura dos cards já sorteados.
+    // O card é o primeiro item, sem abrir o modal (o sorteio ainda não aconteceu).
+    const card = document.createElement("div");
+    card.className = "draw-card draw-card-upcoming draw-card-visible bg-white p-3 rounded-lg border border-stone-200 shadow-sm text-sm";
+    card.innerHTML = `
+      <div class="flex justify-between items-center">
+        <span class="font-semibold text-stone-800">Concurso ${String(nextNumber).padStart(4, "0")}</span>
+        <span class="text-xs text-stone-500">${nextDateText}</span>
+      </div>
+      <div class="font-bold mt-1 next-draw-status">◷ Próximo sorteio</div>
+      <div class="text-xs text-stone-500">Estimado: ${estimatedPrize !== null ? formatPrize(estimatedPrize) : "Valor não informado"}</div>
+    `;
+
+    drawListContainer.prepend(card);
+  }
+
   function renderResultCard(container, data, game) {
     if (!data) return;
 
@@ -673,6 +739,9 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    // Exibe imediatamente o próximo sorteio, independentemente do ano selecionado.
+    renderNextContestCard(latestData);
+
     updateLoadingProgress("Localizando concursos do ano...");
     const firstContestOfNextYear = await findContestBoundary(
       currentGame,
@@ -699,7 +768,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (firstContestOfCurrentYear === -1) {
       showLoading(false);
-      drawListContainer.innerHTML = `<p class="col-span-full text-center text-stone-500 p-8">Nenhum resultado encontrado para ${currentGame} em ${currentYear}.</p>`;
+      drawListContainer.insertAdjacentHTML("beforeend", `<p class="col-span-full text-center text-stone-500 p-8">Nenhum resultado encontrado para ${currentGame} em ${currentYear}.</p>`);
       return;
     }
 
@@ -772,7 +841,7 @@ document.addEventListener("DOMContentLoaded", function () {
       showLoading(false);
       if (foundContestsCount === 0) {
         summaryContainer.classList.add("hidden");
-        drawListContainer.innerHTML = `<p class="col-span-full text-center text-stone-500 p-8">Nenhum resultado encontrado para ${currentGame} em ${currentYear}.</p>`;
+        drawListContainer.insertAdjacentHTML("beforeend", `<p class="col-span-full text-center text-stone-500 p-8">Nenhum resultado encontrado para ${currentGame} em ${currentYear}.</p>`);
       }
     }
     console.log(concursos);
@@ -1071,7 +1140,7 @@ document.addEventListener("DOMContentLoaded", function () {
     "game-tab-tm": "timemania",
     "game-tab-ds": "duplasena",
     "game-tab-sd": "diadesorte",
-    "game-tab-ss": "supersete",
+    "game-tab-ss": "super-sete",
     "game-tab-mm": "maismilionaria",
   };
 
